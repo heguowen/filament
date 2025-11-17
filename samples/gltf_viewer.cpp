@@ -145,6 +145,10 @@ struct App {
     bool screenshot = false;
     uint8_t screenshotSeq = 0;
     bool screenshotAsPPM = false;
+    
+    // Model rotation mode
+    bool modelRotationMode = false;
+    float modelRotationSpeed = 0.5f;  // rotation speed in radians per second
 };
 
 static const char* DEFAULT_IBL = "assets/ibl/lightroom_14b";
@@ -178,13 +182,15 @@ static void printUsage(char* name) {
         "   --ubershader, -u\n"
         "       Enable ubershaders (improves load time, adds shader complexity)\n\n"
         "   --camera=<camera mode>, -c <camera mode>\n"
-        "       Set the camera mode: orbit (default) or flight\n"
-        "       Flight mode uses the following controls:\n"
+        "       Set the camera mode: orbit (default), flight, or rotate\n"
+        "       orbit: orbit around the model (default)\n"
+        "       flight: free-flight camera mode with the following controls:\n"
         "           Click and drag the mouse to pan the camera\n"
         "           Use the scroll wheel to adjust movement speed\n"
         "           W / S: forward / backward\n"
         "           A / D: left / right\n"
-        "           E / Q: up / down\n\n"
+        "           E / Q: up / down\n"
+        "       rotate: automatically rotate the model (camera stays fixed)\n\n"
         "   --eyes=<stereoscopic eyes>, -y <stereoscopic eyes>\n"
         "       Sets the number of stereoscopic eyes (default: 2) when stereoscopic rendering is\n"
         "       enabled.\n\n"
@@ -265,8 +271,11 @@ static int handleCommandLineArguments(int argc, char* argv[], App* app) {
                     app->config.cameraMode = camutils::Mode::FREE_FLIGHT;
                 } else if (arg == "orbit") {
                     app->config.cameraMode = camutils::Mode::ORBIT;
+                } else if (arg == "rotate") {
+                    app->modelRotationMode = true;
+                    app->config.cameraMode = camutils::Mode::ORBIT;
                 } else {
-                    std::cerr << "Unrecognized camera mode. Must be 'flight'|'orbit'.\n";
+                    std::cerr << "Unrecognized camera mode. Must be 'flight'|'orbit'|'rotate'.\n";
                 }
                 break;
             case 'y': {
@@ -1067,7 +1076,7 @@ int main(int argc, char** argv) {
         AssetLoader::destroy(&app.assetLoader);
     };
 
-    auto animate = [&app](Engine*, View*, double now) {
+    auto animate = [&app](Engine* engine, View*, double now) {
         app.resourceLoader->asyncUpdateLoad();
 
         // Optionally fit the model into a unit cube at the origin.
@@ -1077,6 +1086,27 @@ int main(int argc, char** argv) {
         app.viewer->populateScene();
 
         app.viewer->applyAnimation(now);
+
+        // Apply model rotation if enabled
+        if (app.modelRotationMode && app.asset) {
+            auto& tcm = engine->getTransformManager();
+            auto assetRoot = app.asset->getRoot();
+            auto instance = tcm.getInstance(assetRoot);
+            
+            if (instance) {
+                // Calculate rotation based on time
+                float angle = static_cast<float>(now) * app.modelRotationSpeed;
+                mat4f rotation = mat4f::rotation(angle, float3{0.0f, 1.0f, 0.0f});
+                
+                // Get current transform and apply rotation
+                mat4f currentTransform = tcm.getTransform(instance);
+                // Extract translation from current transform
+                float3 translation = currentTransform[3].xyz;
+                // Apply rotation around Y axis, preserving translation
+                mat4f newTransform = mat4f::translation(translation) * rotation;
+                tcm.setTransform(instance, newTransform);
+            }
+        }
     };
 
     auto resize = [&app](Engine*, View* view) {
