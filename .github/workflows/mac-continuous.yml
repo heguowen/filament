@@ -1,11 +1,12 @@
 name: macOS
 
-on:
-  push:
-    branches:
-      - main
-      - release
-      - rc/**
+# Temporarily disabled to save GitHub Actions resources
+# on:
+#   push:
+#     branches:
+#       - main
+#       - release
+#       - rc/**
 
 jobs:
   build-mac:

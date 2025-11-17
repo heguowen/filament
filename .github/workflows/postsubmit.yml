@@ -1,9 +1,10 @@
 name: 'Post-submit tasks'
 
-on:
-  push:
-    branches:
-      - main
+# Temporarily disabled to save GitHub Actions resources
+# on:
+#   push:
+#     branches:
+#       - main
 
 jobs:
   update-renderdiff-goldens:

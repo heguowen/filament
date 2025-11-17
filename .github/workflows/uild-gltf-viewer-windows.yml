@@ -1,16 +1,17 @@
 name: Windows
 
-on:
-  push:
-    branches:
-      - main
-      - release
-      - rc/**
+# Temporarily disabled (duplicate of windows-continuous.yml) to save GitHub Actions resources
+# on:
+#   push:
+#     branches:
+#       - main
+#       - release
+#       - rc/**
 
 jobs:
   build-windows:
     name: build-windows
-    runs-on: windows-latest
+    runs-on: windows-2022-32core
 
     steps:
       - uses: actions/checkout@v4.1.6

@@ -1,12 +1,13 @@
 name: Presubmit
 
-on:
-  push:
-    branches:
-      - main
-  pull_request:
-    branches:
-      - main
+# Temporarily disabled to save GitHub Actions resources
+# on:
+#   push:
+#     branches:
+#       - main
+#   pull_request:
+#     branches:
+#       - main
 
 jobs:
   build-desktop-mac:
