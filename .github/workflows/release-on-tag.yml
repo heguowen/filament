@@ -2,30 +2,23 @@
 
 name: Build and Release gltf-viewer
 
-# ==================== 触发条件 ====================
 on:
-  # 1. 当你创建一个以 'v' 开头的 tag (例如 v1.0, v1.1-alpha) 并推送到 GitHub 时
   push:
     tags:
       - 'v*'
-  # 2. 同时也允许你在 GitHub Actions 页面手动点击按钮触发
   workflow_dispatch:
 
 jobs:
   build-and-release:
     name: Build and Release for Windows
-    # 使用标准的、免费的 Windows 虚拟机
     runs-on: windows-latest
 
     steps:
-      # ==================== 步骤 1: 准备工作 ====================
-      # 从你的仓库下载最新的代码
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          submodules: 'recursive' # 必须！下载 Filament 的子模块
+          submodules: 'recursive'
 
-      # 安装编译所需的工具 (CMake 和 Python)
       - name: Install CMake and Python
         uses: jwlawson/actions-setup-cmake@v2.0
         with:
@@ -34,50 +27,30 @@ jobs:
         with:
           python-version: '3.x'
 
-      # ==================== 步骤 2: 编译 (优化版) ====================
-      # 运行 CMake 配置项目，只为 gltf-viewer
       - name: Configure CMake
         run: >
           cmake -S . -B build -G "Visual Studio 17 2022" -A x64
           -DCMAKE_BUILD_TYPE=Release
           -DFILAMENT_ENABLE_JAVA=OFF
           -DFILAMENT_SKIP_SAMPLES=ON
+          -DFILAMENT_ENABLE_TOOLS=ON
 
-      # 只编译我们需要的 gltf-viewer
       - name: Build gltf-viewer
         run: cmake --build build --target gltf-viewer --config Release -j
 
-      # ==================== 步骤 3: 打包 (为 Release 准备) ====================
-      # 将所有需要的文件整理到一个文件夹，并压缩成 .zip
       - name: Prepare package for Release
         shell: bash
         run: |
-          # 创建一个临时打包目录
           mkdir package
-
-          # 复制主程序和所有必需的 DLL
           cp build/tools/gltf-viewer/gltf-viewer.exe package/
           cp build/bin/*.dll package/
-
-          # (可选) 添加一个简单的使用说明
           echo "gltf-viewer with custom object rotation." > package/readme.txt
           echo "Unzip and double-click gltf-viewer.exe to run." >> package/readme.txt
-          
-          # 将 package 文件夹压缩成一个 zip 文件
-          # 我们从 GitHub 的 tag 中提取版本号作为文件名
-          # 例如，如果 tag 是 v1.1，文件名就是 gltf-viewer-v1.1-windows.zip
           VERSION_NAME=${{ github.ref_name }}
           zip -r "gltf-viewer-${VERSION_NAME}-windows.zip" package
 
-      # ==================== 步骤 4: 创建 Release 并上传 ====================
-      # 使用社区广受好评的 action 来自动化发布流程
       - name: Create GitHub Release and Upload Asset
         uses: softprops/action-gh-release@v2
         with:
-          # files: 指定要上传的文件，就是我们上一步创建的 zip 包
           files: "gltf-viewer-*-windows.zip"
-          
-          # (可选) 自动生成 Release 的标题和内容
-          # title: 使用 tag 名作为标题
-          # body: 根据 commit 历史自动生成更新日志
           generate_release_notes: true
