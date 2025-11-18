@@ -1,4 +1,4 @@
-# 文件路径: .github/workflows/release-on-tag.yml (最终修正版)
+# 文件路径: .github/workflows/release-on-tag.yml (最终、可靠的版本)
 
 name: Build and Release gltf-viewer
 
@@ -14,40 +14,39 @@ jobs:
     runs-on: windows-latest
 
     steps:
+      # 步骤 1: 检出代码
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           submodules: 'recursive'
 
-      - name: Install CMake and Python
-        uses: jwlawson/actions-setup-cmake@v2.0
-        with:
-          cmake-version: '3.22.x'
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.x'
+      # 步骤 2: 运行官方的、完整的构建脚本 (这会比较慢，但能保证成功)
+      - name: Build entire Filament project using official script
+        run: build\windows\build-github.bat continuous
+        shell: cmd
 
-      - name: Configure CMake
-        run: >
-          cmake -S . -B build -G "Visual Studio 17 2022" -A x64
-          -DCMAKE_BUILD_TYPE=Release
-          -DFILAMENT_ENABLE_JAVA=OFF
-          -DFILAMENT_ENABLE_TOOLS=ON
-
-      - name: Build gltf-viewer
-        run: cmake --build build --target gltf-viewer --config Release -j
-
-      - name: Prepare package for Release
+      # 步骤 3: 从完整的构建输出中，提取我们需要的 gltf-viewer 文件
+      - name: Prepare gltf-viewer package from build output
         shell: bash
         run: |
+          # 创建一个干净的打包目录
           mkdir package
-          cp build/tools/gltf-viewer/gltf-viewer.exe package/
-          cp build/bin/*.dll package/
+
+          # 官方脚本会将所有二进制文件输出到 out/filament/bin 目录
+          # 我们从那里复制我们需要的东西
+          echo "Copying files from out/filament/bin..."
+          cp out/filament/bin/gltf-viewer.exe package/
+          cp out/filament/bin/*.dll package/
+
+          # 创建一个 Readme 文件
           echo "gltf-viewer with custom object rotation." > package/readme.txt
           echo "Unzip and double-click gltf-viewer.exe to run." >> package/readme.txt
+          
+          # 将 package 文件夹压缩成一个 zip 文件
           VERSION_NAME=${{ github.ref_name }}
           zip -r "gltf-viewer-${VERSION_NAME}-windows.zip" package
 
+      # 步驟 4: 創建 Release 並上傳我們精心提取的 zip 包
       - name: Create GitHub Release and Upload Asset
         uses: softprops/action-gh-release@v2
         with:
